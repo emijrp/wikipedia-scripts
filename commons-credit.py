@@ -25,23 +25,27 @@ import pywikibot
 
 def main():
     commons = pywikibot.Site('commons', 'commons')
-    images = ['hola']
-    while images:
-        flickrurl = 'https://www.flickr.com/people/96396586@N07'
-        linksearch = 'https://commons.wikimedia.org/w/index.php?target=%s&title=Special:LinkSearch' % (flickrurl)
-        req = urllib.request.Request(linksearch, headers={ 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:55.0) Gecko/20100101 Firefox/55.0' })
-        raw = urllib.request.urlopen(req).read().strip().decode('utf-8')
-        images = re.findall(r'title="(File:[^<>]+?)">File:', raw)
-        print(images)
-        for image in images:
-            page = pywikibot.Page(commons, image)
-            text = page.text
-            newtext = page.text
-            newtext = re.sub(r'(\|\s*Author\s*=\s*)\[https://www.flickr.com/people/96396586@N07 [^\]]*?\] from España', r'\1{{User:Emijrp/credit}}', newtext)
-            if text != newtext:
-                pywikibot.showDiff(text, newtext)
-                page.text = newtext
-                page.save('BOT - Updating credit template')
+    flickrurls = [
+        'http://www.flickr.com/people/96396586@N07',
+        'https://www.flickr.com/people/96396586@N07',
+    ]
+    for flickrurl in flickrurls:
+        images = ['hola']
+        while images:
+            linksearch = 'https://commons.wikimedia.org/w/index.php?target=%s&title=Special:LinkSearch' % (flickrurl)
+            req = urllib.request.Request(linksearch, headers={ 'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:55.0) Gecko/20100101 Firefox/55.0' })
+            raw = urllib.request.urlopen(req).read().strip().decode('utf-8')
+            images = re.findall(r'title="(File:[^<>]+?)">File:', raw)
+            print(images)
+            for image in images:
+                page = pywikibot.Page(commons, image)
+                text = page.text
+                newtext = page.text
+                newtext = re.sub(r'(\|\s*Author\s*=\s*)\[%s [^\]]*?\] from (España|Spain)' % (flickrurl), r'\1{{User:Emijrp/credit}}', newtext)
+                if text != newtext:
+                    pywikibot.showDiff(text, newtext)
+                    page.text = newtext
+                    page.save('BOT - Updating credit template')
 
 if __name__ == '__main__':
     main()
