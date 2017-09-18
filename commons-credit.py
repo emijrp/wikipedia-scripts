@@ -22,8 +22,35 @@ import urllib.request
 
 import pwb
 import pywikibot
+from pywikibot import pagegenerators
 
-def main():
+def creditByWhatlinkshere():
+    commons = pywikibot.Site('commons', 'commons')
+    userpage = pywikibot.Page(commons, 'User:Emijrp')
+    gen = userpage.backlinks(namespaces=[6])
+    for page in gen:
+        print('==', page.title(), '==')
+        newtext = page.text
+        newtext = re.sub('(?im)(\|\s*author\s*=\s*)\[\[User\:Emijrp\|Emijrp\]\]', r'\1{{User:Emijrp/credit}}', newtext)
+        if newtext != page.text:
+            pywikibot.showDiff(page.text, newtext)
+            page.text = newtext
+            page.save('BOT - Updating credit template')
+
+def creditByCategory():
+    commons = pywikibot.Site('commons', 'commons')
+    category = pywikibot.Category(commons, '15-O Demonstrations, Cádiz')
+    gen = pagegenerators.CategorizedPageGenerator(category)
+    for page in gen:
+        print('==', page.title(), '==')
+        newtext = page.text
+        newtext = re.sub('(?im)(\|\s*author\s*=\s*)\[\[User\:Emijrp\|Emijrp\]\]', r'\1{{User:Emijrp/credit}}', newtext)
+        if newtext != page.text:
+            pywikibot.showDiff(page.text, newtext)
+            page.text = newtext
+            page.save('BOT - Updating credit template')
+
+def creditByFlickrUrl():
     commons = pywikibot.Site('commons', 'commons')
     flickrurls = [
         'http://www.flickr.com/people/96396586@N07',
@@ -46,6 +73,11 @@ def main():
                     pywikibot.showDiff(text, newtext)
                     page.text = newtext
                     page.save('BOT - Updating credit template')
+
+def main():
+    #creditByFlickrUrl()
+    #creditByCategory()
+    creditByWhatlinkshere()
 
 if __name__ == '__main__':
     main()
