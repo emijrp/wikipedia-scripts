@@ -24,6 +24,18 @@ import pwb
 import pywikibot
 from pywikibot import pagegenerators
 
+def replaceAuthor(newtext=''):
+    newtext = re.sub(r'(?im)(\|\s*author\s*=\s*)\[\[User\:Emijrp\|Emijrp\]\]', r'\1{{User:Emijrp/credit}}', newtext)
+    newtext = re.sub(r'(?im)(\|\s*author\s*=\s*)User\:Emijrp', r'\1{{User:Emijrp/credit}}', newtext)
+    newtext = re.sub(r'(?im)(\|\s*author\s*=\s*)Usuario\:Emijrp', r'\1{{User:Emijrp/credit}}', newtext)
+    newtext = re.sub(r'(?im)(\|\s*author\s*=\s*)Emijrp', r'\1{{User:Emijrp/credit}}', newtext)
+    return newtext
+
+def replaceSource(newtext=''):
+    if re.search(r'(?im)\|\s*author\s*=\s*{{User:Emijrp/credit}}', newtext):
+        newtext = re.sub(r'(?im)(\|\s*source\s*=\s*){{User:Emijrp/credit}}', r'\1{{own work}}', newtext)
+    return newtext
+
 def creditByWhatlinkshere():
     commons = pywikibot.Site('commons', 'commons')
     userpage = pywikibot.Page(commons, 'User:Emijrp')
@@ -31,7 +43,8 @@ def creditByWhatlinkshere():
     for page in gen:
         print('==', page.title(), '==')
         newtext = page.text
-        newtext = re.sub('(?im)(\|\s*author\s*=\s*)\[\[User\:Emijrp\|Emijrp\]\]', r'\1{{User:Emijrp/credit}}', newtext)
+        newtext = replaceAuthor(newtext=newtext)
+        newtext = replaceSource(newtext=newtext)
         if newtext != page.text:
             pywikibot.showDiff(page.text, newtext)
             page.text = newtext
@@ -40,11 +53,13 @@ def creditByWhatlinkshere():
 def creditByCategory():
     commons = pywikibot.Site('commons', 'commons')
     category = pywikibot.Category(commons, '15-O Demonstrations, Cádiz')
+    category = pywikibot.Category(commons, 'Paseo reflexivo Cádiz 21 de mayo de 2011')
     gen = pagegenerators.CategorizedPageGenerator(category)
     for page in gen:
         print('==', page.title(), '==')
         newtext = page.text
-        newtext = re.sub('(?im)(\|\s*author\s*=\s*)\[\[User\:Emijrp\|Emijrp\]\]', r'\1{{User:Emijrp/credit}}', newtext)
+        newtext = replaceAuthor(newtext=newtext)
+        newtext = replaceSource(newtext=newtext)
         if newtext != page.text:
             pywikibot.showDiff(page.text, newtext)
             page.text = newtext
@@ -53,7 +68,9 @@ def creditByCategory():
 def creditByFlickrUrl():
     commons = pywikibot.Site('commons', 'commons')
     flickrurls = [
+        'http://flickr.com/people/96396586@N07',
         'http://www.flickr.com/people/96396586@N07',
+        'https://flickr.com/people/96396586@N07',
         'https://www.flickr.com/people/96396586@N07',
     ]
     for flickrurl in flickrurls:
@@ -68,16 +85,16 @@ def creditByFlickrUrl():
                 page = pywikibot.Page(commons, image)
                 text = page.text
                 newtext = page.text
-                newtext = re.sub(r'(\|\s*Author\s*=\s*)\[%s [^\]]*?\] from (España|Spain)' % (flickrurl), r'\1{{User:Emijrp/credit}}', newtext)
+                newtext = re.sub(r'(\|\s*Author\s*=\s*)\[%s [^\]]*?\]\s*(de|from)?\s*(España|Spain)?' % (flickrurl), r'\1{{User:Emijrp/credit}}', newtext)
                 if text != newtext:
                     pywikibot.showDiff(text, newtext)
                     page.text = newtext
                     page.save('BOT - Updating credit template')
 
 def main():
-    #creditByFlickrUrl()
+    creditByFlickrUrl()
     #creditByCategory()
-    creditByWhatlinkshere()
+    #creditByWhatlinkshere()
 
 if __name__ == '__main__':
     main()
