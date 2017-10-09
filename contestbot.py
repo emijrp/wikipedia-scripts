@@ -70,28 +70,39 @@ def main():
         text = contestpage.text
         lines = text.splitlines()
         newtext = []
+        usersection = False
         for line in lines:
-            m = re.findall(r'(?im)^(\*\s*\[\[[^\[\]]+?\]\]).*', line)
-            if m:
-                m = m[0]
-                if not 'Wikipedia:' in m and not 'prose count' in m:
-                    pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].strip()).strip()
-                    pagetitle = 'María Stagnero de Munar'
-                    print(pagetitle)
-                    page = pywikibot.Page(site, pagetitle)
-                    newline = '* [[%s]] - ' % (pagetitle)
-                    count = proseCount(text=page.text)
-                    if count > 1000:
-                        newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
-                    else:
-                        newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
-                    if unsourcedParagraphs(text=page.text) or formatErrors(text=page.text):
-                        newline += 'Unsourced paragraphs or formatting errors. {{cross}}'
-                    else:
-                        newline += 'No unsourced paragraphs or formatting errors. {{tick}}'
-                    newtext.append(newline)
-                    print(newline)
-                    continue
+            if re.search(r'(?im)^==*?\s*?\[?\[?User', line):
+                usersection = True
+                newtext.append(line)
+                continue
+            if usersection and re.search(r'(?im)^==', line):
+                usersection = False
+                newtext.append(line)
+                continue
+            
+            if usersection:
+                m = re.findall(r'(?im)^(\*\s*\[\[[^\[\]]+?\]\]).*', line)
+                if m:
+                    m = m[0]
+                    if not 'Wikipedia:' in m and not 'prose count' in m:
+                        pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].strip()).strip()
+                        pagetitle = 'María Stagnero de Munar'
+                        print(pagetitle)
+                        page = pywikibot.Page(site, pagetitle)
+                        newline = '* [[%s]] - ' % (pagetitle)
+                        count = proseCount(text=page.text)
+                        if count > 1000:
+                            newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
+                        else:
+                            newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
+                        if unsourcedParagraphs(text=page.text) or formatErrors(text=page.text):
+                            newline += 'Unsourced paragraphs or formatting errors. {{cross}}'
+                        else:
+                            newline += 'No unsourced paragraphs or formatting errors. {{tick}}'
+                        newtext.append(newline)
+                        print(newline)
+                        continue
             newtext.append(line)
         newtext = '\n'.join(newtext)
         pywikibot.showDiff(text, newtext)
