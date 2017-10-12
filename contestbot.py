@@ -52,6 +52,10 @@ def unsourcedParagraphs(text=''):
     return unsourced
 
 def formatErrors(text=''):
+    if re.search(r'(?im)http', text) and not re.search(r'(?im)[\[\=]\s*http', text): #plain urls
+        return True
+    if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)<\s*/\s*ref\s*>', text)): #refs without publisher
+        return True
     return False
 
 def main():
@@ -92,7 +96,7 @@ def main():
                         page = pywikibot.Page(site, pagetitle)
                         newline = '* [[%s]] - ' % (pagetitle)
                         count = proseCount(text=page.text)
-                        if count > 1000:
+                        if count >= 750:
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
                         else:
                             newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
