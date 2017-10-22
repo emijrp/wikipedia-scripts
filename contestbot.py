@@ -56,6 +56,8 @@ def formatErrors(text=''):
         return True
     if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)<\s*/\s*ref\s*>', text)): #refs without publisher
         return True
+    if re.findall(r'(?im)date\s*=\s*\d\d\d\d', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text):
+        return True
     return False
 
 def main():
@@ -91,12 +93,12 @@ def main():
                     m = m[0]
                     if not 'Wikipedia:' in m and not 'prose count' in m:
                         pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].strip()).strip()
-                        pagetitle = 'María Stagnero de Munar'
+                        #pagetitle = 'María Stagnero de Munar'
                         print(pagetitle)
                         page = pywikibot.Page(site, pagetitle)
                         newline = '* [[%s]] - ' % (pagetitle)
                         count = proseCount(text=page.text)
-                        if count >= 750:
+                        if count >= 1000:
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
                         else:
                             newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
