@@ -22,17 +22,36 @@ import pywikibot
 from pywikibot import pagegenerators
 
 def removeNoProse(text='', keeprefs=False):
+    for y in range(10, 0, -1):
+        for x in ['Bibliography', 'Citations', 'Notes', 'References', 'See also']:
+            text = text.split('%s%s' % (y*'=', x))[0]
+            text = text.split('%s %s' % (y*'=', x))[0]
+            text = text.split('%s  %s' % (y*'=', x))[0]
     text = re.sub(r'(?im)\'\'+', r'', text)
-    text = re.sub(r'(?im)\{\{[^\{\}]*?\}\}', r' ', text)
+    #text = re.sub(r'(?im)\{\{[^\{\}]*?\}\}', r' ', text)
+    text2 = []
+    for line in text.splitlines():
+        line = line.strip()
+        if len(line) < 15:
+            continue
+        if not line or \
+            line.startswith('{') or \
+            line.startswith('|') or \
+            line.startswith('}'):
+            continue
+        text2.append(line)
+    text = '\n'.join(text2)
     text = re.sub(r'(?im)^==+[^=]*?==+', r' ', text)
     text = re.sub(r'(?im)\[\[\s*(File|Image)\s*:.*?\]\]', r' ', text)
     if not keeprefs:
         text = re.sub(r'(?im)<ref[^<>]*?>[^<>]*?</ref>', r' ', text)
         text = re.sub(r'(?im)<ref[^<>]*?>', r' ', text)
+        text = re.sub(r'(?im)\{\{sfn[^\{\}]*?\}\}', r' ', text)
     text = re.sub(r'(?im)\[\[\s*Category\s*:[^\[\]]*?\]\]', r' ', text)
     text = re.sub(r'  +', r' ', text)
     text = re.sub(r'\n\n+', r'\n', text)
-    text = re.sub(r'(?im)[\[\]]+', r'', text)
+    text = re.sub(r'(?im)\[\[([^\[\]\|]*?)\]\]', r'\1', text)
+    text = re.sub(r'(?im)\[\[[^\[\]\|]*?\|([^\[\]\|]*?)\]\]', r'\1', text)
     text = text.strip()
     return text
 
@@ -42,23 +61,33 @@ def proseCount(text=''):
     return len(text)
 
 def unsourcedParagraphs(text=''):
-    unsourced = False
+    unsourced = 0
     text = removeNoProse(text=text, keeprefs=True)
     #print(text)
+    c = 1
     for line in text.splitlines():
+        if c == 1:
+            c += 1
+            continue
         line = line.strip()
-        if line and not re.search(r'(?im)<\s*ref[ >]', line):
-            unsourced = True
+        if line and \
+            not re.search(r'(?im)<\s*ref[ \>]', line) and \
+            not re.search(r'(?im)\{\{sfn', line):
+            unsourced += 1
+        c += 1
+    print('unsourced', unsourced)
     return unsourced
 
 def formatErrors(text=''):
+    errors = []
     if re.search(r'(?im)http', text) and not re.search(r'(?im)[\[\=]\s*http', text): #plain urls
-        return True
-    if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)<\s*/\s*ref\s*>', text)): #refs without publisher
-        return True
-    if re.findall(r'(?im)date\s*=\s*\d\d\d\d', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text):
-        return True
-    return False
+        errors.append('plain url')
+    if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
+        errors.append('missing publisher')
+    if re.findall(r'(?im)date\s*=\s*\d\d\d\d\-', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text):
+        errors.append('date format')
+    print('errors', errors)
+    return errors
 
 def main():
     site = pywikibot.Site('en', 'wikipedia')
@@ -78,7 +107,7 @@ def main():
         newtext = []
         usersection = False
         for line in lines:
-            if re.search(r'(?im)^==*?\s*?\[?\[?User', line):
+            if re.search(r'(?im)^==.*User', line):
                 usersection = True
                 newtext.append(line)
                 continue
@@ -102,16 +131,21 @@ def main():
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
                         else:
                             newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
-                        if unsourcedParagraphs(text=page.text) or formatErrors(text=page.text):
-                            newline += 'Unsourced paragraphs or formatting errors. {{cross}}'
+                        unsourced = unsourcedParagraphs(text=page.text)
+                        formaterrors = formatErrors(text=page.text)
+                        if unsourced or formaterrors:
+                            newline += 'Unsourced paragraphs (%s); formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or 'none')
                         else:
-                            newline += 'No unsourced paragraphs or formatting errors. {{tick}}'
+                            newline += 'No unsourced paragraphs; no formatting errors. {{tick}}'
                         newtext.append(newline)
                         print(newline)
                         continue
             newtext.append(line)
         newtext = '\n'.join(newtext)
-        pywikibot.showDiff(text, newtext)
+        if text != newtext:
+            pywikibot.showDiff(text, newtext)
+            contestpage.text = newtext
+            contestpage.save('BOT - Checking articles')
 
 if __name__ == '__main__':
     main()
