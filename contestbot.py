@@ -21,14 +21,15 @@ import pwb
 import pywikibot
 from pywikibot import pagegenerators
 
-def removeNoProse(text='', keeprefs=False):
+def removeNoProse(text='', keeprefs=False, keepinlinetemplates=False, keeplists=True):
     for y in range(10, 0, -1):
-        for x in ['Bibliography', 'Citations', 'Notes', 'References', 'See also']:
+        for x in ['Bibliography', 'Citations', 'Notes', 'References', 'See also', 'External links']:
             text = text.split('%s%s' % (y*'=', x))[0]
             text = text.split('%s %s' % (y*'=', x))[0]
             text = text.split('%s  %s' % (y*'=', x))[0]
     text = re.sub(r'(?im)\'\'+', r'', text)
-    #text = re.sub(r'(?im)\{\{[^\{\}]*?\}\}', r' ', text)
+    if not keepinlinetemplates:
+        text = re.sub(r'(?im).\{\{[^\{\}]*?\}\}', r' ', text)
     text2 = []
     for line in text.splitlines():
         line = line.strip()
@@ -36,7 +37,7 @@ def removeNoProse(text='', keeprefs=False):
             continue
         if not line or \
             line.startswith('{') or \
-            line.startswith('|') or \
+            line.startswith('|') or line.startswith(' |') or line.startswith('  |') or \
             line.startswith('}'):
             continue
         text2.append(line)
@@ -52,41 +53,51 @@ def removeNoProse(text='', keeprefs=False):
     text = re.sub(r'\n\n+', r'\n', text)
     text = re.sub(r'(?im)\[\[([^\[\]\|]*?)\]\]', r'\1', text)
     text = re.sub(r'(?im)\[\[[^\[\]\|]*?\|([^\[\]\|]*?)\]\]', r'\1', text)
+    if not keeplists:
+        text = re.sub(r'(?im)^\*.{3,}', r'', text)
+    text = re.sub(r'  +', r' ', text)
     text = text.strip()
     return text
 
 def proseCount(text=''):
     for i in range(1, 10):
-        text = removeNoProse(text=text)
+        text = removeNoProse(text=text, keeprefs=False, keepinlinetemplates=False, keeplists=False)
     return len(text)
 
 def unsourcedParagraphs(text=''):
     unsourced = 0
-    text = removeNoProse(text=text, keeprefs=True)
+    sections = set(re.findall(r'(?im)^==\s*([^=]+?)\s*==', text))
+    for x in ['Bibliography', 'Citations', 'Notes', 'References', 'See also', 'External links']:
+        if x in sections:
+            sections.remove(x)
+    text = removeNoProse(text=text, keeprefs=True, keepinlinetemplates=True)
     #print(text)
     c = 1
     for line in text.splitlines():
-        if c == 1:
+        if c == 1: #ignore unsourced leads if there are sections below
             c += 1
-            continue
+            if sections:
+                #print(sections)
+                continue
         line = line.strip()
         if line and \
             not re.search(r'(?im)<\s*ref[ \>]', line) and \
             not re.search(r'(?im)\{\{sfn', line):
             unsourced += 1
         c += 1
-    print('unsourced', unsourced)
+    #print('unsourced', unsourced)
     return unsourced
 
 def formatErrors(text=''):
     errors = []
     if re.search(r'(?im)http', text) and not re.search(r'(?im)[\[\=]\s*http', text): #plain urls
         errors.append('plain url')
-    if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
-        errors.append('missing publisher')
-    if re.findall(r'(?im)date\s*=\s*\d\d\d\d\-', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text):
-        errors.append('date format')
-    print('errors', errors)
+    if not re.search(r'(?im)(\{\{\s*sfn|ref\s*=\s*harv|\{\{\s*harv)', text):
+        if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
+            errors.append('missing publisher')
+        if re.findall(r'(?im)date\s*=\s*\d\d\d\d\-', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text): #mix date formats
+            errors.append('date format')
+    #print('errors', errors)
     return errors
 
 def main():
@@ -123,7 +134,7 @@ def main():
                     if not 'Wikipedia:' in m and not 'prose count' in m:
                         pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].strip()).strip()
                         #pagetitle = 'María Stagnero de Munar'
-                        print(pagetitle)
+                        #print(pagetitle)
                         page = pywikibot.Page(site, pagetitle)
                         newline = '* [[%s]] - ' % (pagetitle)
                         count = proseCount(text=page.text)
@@ -134,18 +145,18 @@ def main():
                         unsourced = unsourcedParagraphs(text=page.text)
                         formaterrors = formatErrors(text=page.text)
                         if unsourced or formaterrors:
-                            newline += 'Unsourced paragraphs (%s); formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or 'none')
+                            newline += 'Unsourced paragraphs (%s), formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or 'none')
                         else:
-                            newline += 'No unsourced paragraphs; no formatting errors. {{tick}}'
+                            newline += 'No unsourced paragraphs, no formatting errors. {{tick}}'
                         newtext.append(newline)
-                        print(newline)
+                        #print(newline)
                         continue
             newtext.append(line)
         newtext = '\n'.join(newtext)
         if text != newtext:
             pywikibot.showDiff(text, newtext)
             contestpage.text = newtext
-            contestpage.save('BOT - Checking articles')
+            #contestpage.save('BOT - Checking articles')
 
 if __name__ == '__main__':
     main()
