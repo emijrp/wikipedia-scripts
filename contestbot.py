@@ -38,7 +38,9 @@ def removeNoProse(text='', keeprefs=False, keepinlinetemplates=False, keeplists=
         if not line or \
             line.startswith('{') or \
             line.startswith('|') or line.startswith(' |') or line.startswith('  |') or \
-            line.startswith('}'):
+            line.startswith('}') or \
+            line.startswith('!') or line.startswith(' !') or line.startswith('  !') or \
+            line.startswith('*{{') or line.startswith('* {{'):
             continue
         text2.append(line)
     text = '\n'.join(text2)
@@ -56,6 +58,8 @@ def removeNoProse(text='', keeprefs=False, keepinlinetemplates=False, keeplists=
     if not keeplists:
         text = re.sub(r'(?im)^\*.{3,}', r'', text)
     text = re.sub(r'  +', r' ', text)
+    text = re.sub(r'(?im)[\r\n\s]+\|[\r\n\s]+', ' | ', text) #remove newlines inside refs
+    text = re.sub(r'(?im)([^\.])[\n\r]+', r'\1', text) #remove ghost lines, lines that doesnt end in a dot, etc
     text = text.strip()
     return text
 
@@ -76,7 +80,7 @@ def unsourcedParagraphs(text=''):
     for line in text.splitlines():
         if c == 1: #ignore unsourced leads if there are sections below
             c += 1
-            if sections:
+            if sections or len(re.findall(r'(?im)(<\s*ref|\{\{sfn)', text)) >= 2:
                 #print(sections)
                 continue
         line = line.strip()
@@ -84,6 +88,7 @@ def unsourcedParagraphs(text=''):
             not re.search(r'(?im)<\s*ref[ \>]', line) and \
             not re.search(r'(?im)\{\{sfn', line):
             unsourced += 1
+            print("UNSOURCED: %s" % (line))
         c += 1
     #print('unsourced', unsourced)
     return unsourced
@@ -93,7 +98,7 @@ def formatErrors(text=''):
     if re.search(r'(?im)http', text) and not re.search(r'(?im)[\[\=]\s*http', text): #plain urls
         errors.append('plain url')
     if not re.search(r'(?im)(\{\{\s*sfn|ref\s*=\s*harv|\{\{\s*harv)', text):
-        if len(re.findall(r'(?im)publisher\s*=', text)) != len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
+        if len(re.findall(r'(?im)(journal|publisher|newspaper|website|work)\s*=\s*[^\|\=\s]', text)) < len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
             errors.append('missing publisher')
         if re.findall(r'(?im)date\s*=\s*\d\d\d\d\-', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text): #mix date formats
             errors.append('date format')
