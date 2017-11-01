@@ -128,15 +128,38 @@ def main():
                 continue
             
             if usersection:
-                m = re.findall(r'(?im)^(\*\s*\[\[[^\[\]]+?\]\]).*', line)
+                m = re.findall(r'(?im)^([\*\#]\s*\[\[[^\[\]]+?\]\].*)', line)
                 if m:
                     m = m[0]
-                    if not 'Wikipedia:' in m and not 'prose count' in m:
-                        pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].strip()).strip()
+                    if not 'Wikipedia:' in m: # and not 'prose count' in m:
+                        pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].split(']')[0].strip()).strip()
                         #pagetitle = 'María Stagnero de Munar'
                         #print(pagetitle)
                         page = pywikibot.Page(site, pagetitle)
+                        if page.isRedirectPage():
+                            page = page.getRedirectTarget()
+                            pagetitle = page.title()
                         newline = '* [[%s]] - ' % (pagetitle)
+                        
+                        #valid namespace
+                        if page.namespace() != 0:
+                            newline += 'Declined, entry isn\'t in main namespace'
+                            newtext.append(newline)
+                            continue
+                        
+                        #valid date range
+                        firstedit = page.getVersionHistory(total=1, reverse=True)[0]
+                        summaries = '\n'.join([x[3] for x in page.getVersionHistory()])
+                        #print(summaries)
+                        if not str(firstedit.timestamp).startswith('2017-11-'):
+                            if re.search(r"(?im)moved page \[\[(Draft|User):", summaries):
+                                newline += 'Created in User or Draft space and submitted within November. {{tick}} '
+                            else:
+                                newline += 'Declined, entry wasn\'t created in November. {{cross}}'
+                                newtext.append(newline)
+                                continue
+                        
+                        #analysis
                         count = proseCount(text=page.text)
                         if count >= 1000:
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
@@ -145,7 +168,7 @@ def main():
                         unsourced = unsourcedParagraphs(text=page.text)
                         formaterrors = formatErrors(text=page.text)
                         if unsourced or formaterrors:
-                            newline += 'Unsourced paragraphs (%s), formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or 'none')
+                            newline += 'Unsourced paragraphs (%s), formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or ' (none)')
                         else:
                             newline += 'No unsourced paragraphs, no formatting errors. {{tick}}'
                         newtext.append(newline)
@@ -156,7 +179,7 @@ def main():
         if text != newtext:
             pywikibot.showDiff(text, newtext)
             contestpage.text = newtext
-            #contestpage.save('BOT - Checking articles')
+            contestpage.save('BOT - Checking articles')
 
 if __name__ == '__main__':
     main()
