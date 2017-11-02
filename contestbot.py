@@ -137,9 +137,8 @@ def main():
                 if m:
                     m = m[0]
                     if not 'Wikipedia:' in m: # and not 'prose count' in m:
-                        pagetitle = re.sub(r'(?im)[\[\]\*]', r'', m.split('|')[0].split(']')[0].strip()).strip()
-                        #pagetitle = 'María Stagnero de Munar'
-                        #print(pagetitle)
+                        pagetitle = re.sub(r'(?im)[\[\]\*\#]', r'', m.split('|')[0].split(']')[0].strip()).strip()
+                        print(pagetitle)
                         page = pywikibot.Page(site, pagetitle)
                         if page.isRedirectPage():
                             page = page.getRedirectTarget()
