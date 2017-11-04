@@ -75,7 +75,7 @@ def unsourcedParagraphs(text=''):
         if x in sections:
             sections.remove(x)
     text = removeNoProse(text=text, keeprefs=True, keepinlinetemplates=True)
-    #print(text)
+    #print(text.encode('utf-8'))
     c = 1
     for line in text.splitlines():
         if c == 1: #ignore unsourced leads if there are sections below
@@ -86,9 +86,11 @@ def unsourcedParagraphs(text=''):
         line = line.strip()
         if line and \
             not re.search(r'(?im)<\s*ref[ \>]', line) and \
-            not re.search(r'(?im)\{\{sfn', line):
+            not re.search(r'(?im)\{\{sfn', line) and \
+            not re.search(r'(?im)http', line) and \
+            not re.search(r'(?im)^[\*\#]', line):
             unsourced += 1
-            print("UNSOURCED: %s" % (line))
+            print("UNSOURCED: %s" % (line.encode('utf-8')))
         c += 1
     #print('unsourced', unsourced)
     return unsourced
@@ -116,7 +118,7 @@ def main():
         'Wikipedia:WikiProject Women in Red/The World Contest/Entries/Oceania', 
     ]
     for contestpagetitle in contestpagetitles:
-        print('== %s ==' % (contestpagetitle))
+        print('== %s ==' % (contestpagetitle.encode('utf-8')))
         contestpage = pywikibot.Page(site, contestpagetitle)
         text = contestpage.text
         lines = text.splitlines()
@@ -138,7 +140,7 @@ def main():
                     m = m[0]
                     if not 'Wikipedia:' in m: # and not 'prose count' in m:
                         pagetitle = re.sub(r'(?im)[\[\]\*\#]', r'', m.split('|')[0].split(']')[0].strip()).strip()
-                        print(pagetitle)
+                        print(pagetitle.encode('utf-8'))
                         page = pywikibot.Page(site, pagetitle)
                         if page.isRedirectPage():
                             page = page.getRedirectTarget()
@@ -154,7 +156,7 @@ def main():
                         #valid date range
                         firstedit = page.getVersionHistory(total=1, reverse=True)[0]
                         summaries = '\n'.join([x[3] for x in page.getVersionHistory()])
-                        #print(summaries)
+                        #print(summaries.encode('utf-8'))
                         if not str(firstedit.timestamp).startswith('2017-11-'):
                             if re.search(r"(?im)moved page \[\[(Draft|User):", summaries):
                                 newline += 'Created in User or Draft space and submitted within November. {{tick}} '
@@ -176,7 +178,7 @@ def main():
                         else:
                             newline += 'No unsourced paragraphs, no formatting errors. {{tick}}'
                         newtext.append(newline)
-                        #print(newline)
+                        #print(newline.encode('utf-8'))
                         continue
             newtext.append(line)
         newtext = '\n'.join(newtext)
