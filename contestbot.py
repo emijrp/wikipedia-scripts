@@ -100,7 +100,7 @@ def formatErrors(text=''):
     if re.search(r'(?im)http', text) and not re.search(r'(?im)[\[\=]\s*http', text): #plain urls
         errors.append('plain url')
     if not re.search(r'(?im)(\{\{\s*sfn|ref\s*=\s*harv|\{\{\s*harv)', text):
-        if len(re.findall(r'(?im)(journal|publisher|newspaper|website|work)\s*=\s*[^\|\=\s]', text)) < len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
+        if len(re.findall(r'(?im)(agency|journal|publisher|newspaper|website|work)\s*=\s*[^\|\=\s]', text)) < len(re.findall(r'(?im)\{\{\s*cite', text)): #refs without publisher
             errors.append('missing publisher')
         if re.findall(r'(?im)date\s*=\s*\d\d\d\d\-', text) and re.findall(r'(?im)date\s*=\s*(\d+ )?(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', text): #mix date formats
             errors.append('date format')
@@ -108,6 +108,7 @@ def formatErrors(text=''):
     return errors
 
 def main():
+    minprose = 1000
     site = pywikibot.Site('en', 'wikipedia')
     contestpagetitles = [
         'Wikipedia:WikiProject Women in Red/The World Contest/Entries/North America', 
@@ -117,6 +118,7 @@ def main():
         'Wikipedia:WikiProject Women in Red/The World Contest/Entries/Asia', 
         'Wikipedia:WikiProject Women in Red/The World Contest/Entries/Oceania', 
     ]
+    scoreboard = {}
     for contestpagetitle in contestpagetitles:
         print('== %s ==' % (contestpagetitle.encode('utf-8')))
         contestpage = pywikibot.Page(site, contestpagetitle)
@@ -126,7 +128,7 @@ def main():
         usersection = False
         for line in lines:
             if re.search(r'(?im)^==.*User', line):
-                usersection = True
+                usersection = line.split('ser:')[1].strip().rstrip('=').strip('[').strip(']').strip().replace('_', ' ')
                 newtext.append(line)
                 continue
             if usersection and re.search(r'(?im)^==', line):
@@ -167,7 +169,7 @@ def main():
                         
                         #analysis
                         count = proseCount(text=page.text)
-                        if count >= 1000:
+                        if count >= minprose:
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
                         else:
                             newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
@@ -177,6 +179,14 @@ def main():
                             newline += 'Unsourced paragraphs (%s), formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or ' (none)')
                         else:
                             newline += 'No unsourced paragraphs, no formatting errors. {{tick}}'
+                            if count >= minprose:
+                                if usersection in scoreboard:
+                                    scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
+                                else:
+                                    scoreboard[usersection] = {}
+                                    for conpagetitle in contestpagetitles:
+                                        scoreboard[usersection][conpagetitle.split('/')[-1]] = 0
+                                    scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
                         newtext.append(newline)
                         #print(newline.encode('utf-8'))
                         continue
@@ -186,6 +196,49 @@ def main():
             pywikibot.showDiff(text, newtext)
             contestpage.text = newtext
             contestpage.save('BOT - Checking articles')
+    scoreboardlist = []
+    for username, scores in scoreboard.items():
+        na = scores[contestpagetitles[0].split('/')[-1]]
+        la = scores[contestpagetitles[1].split('/')[-1]]
+        eu = scores[contestpagetitles[2].split('/')[-1]]
+        af = scores[contestpagetitles[3].split('/')[-1]]
+        asi = scores[contestpagetitles[4].split('/')[-1]]
+        oc = scores[contestpagetitles[5].split('/')[-1]]
+        scoreboardlist.append([na+la+eu+af+asi+oc, username, na, la, eu, af, asi, oc])
+    scoreboardlist.sort(reverse=True)
+    scoreboardtable = """{| class="wikitable sortable"
+! User
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/North America|North Am.]]
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/Latin America and the Caribbean|Latin Am.]]
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/Europe|Europe]]
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/Africa|Africa]]
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/Asia|Asia]]
+! [[Wikipedia:WikiProject Women in Red/The World Contest/Entries/Oceania|Oceania]]
+! Total
+|-
+"""
+    totalna = 0
+    totalla = 0
+    totaleu = 0
+    totalaf = 0
+    totalasi = 0
+    totaloc = 0
+    total = 0
+    for usertotal, username, na, la, eu, af, asi, oc in scoreboardlist:
+        #print(scoreboard[username])
+        scoreboardtable += "| '''[[User:%s|%s]]''' || %d || %d || %d || %d || %d || %d || %d\n|-\n" % (username, username, na, la, eu, af, asi, oc, usertotal)
+        totalna += na
+        totalla += la
+        totaleu += eu
+        totalaf += af
+        totalasi += asi
+        totaloc += oc
+        total += usertotal
+    scoreboardtable += "| '''Total''' || %d || %d || %d || %d || %d || %d || %d\n" % (totalna, totalla, totaleu, totalaf, totalasi, totaloc, total)
+    scoreboardtable += "|}"
+    scpage = pywikibot.Page(site, "Wikipedia:WikiProject Women in Red/The World Contest/Scoreboard")
+    scpage.text = scoreboardtable
+    scpage.save("BOT - Updating scoreboard")
 
 if __name__ == '__main__':
     main()
