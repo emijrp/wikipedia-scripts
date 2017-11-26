@@ -144,6 +144,9 @@ def main():
                         pagetitle = re.sub(r'(?im)[\[\]\*\#]', r'', m.split('|')[0].split(']')[0].strip()).strip()
                         print(pagetitle.encode('utf-8'))
                         page = pywikibot.Page(site, pagetitle)
+                        if not page.exists():
+                            newtext.append(line)
+                            continue
                         if page.isRedirectPage():
                             page = page.getRedirectTarget()
                             pagetitle = page.title()
@@ -171,6 +174,13 @@ def main():
                         count = proseCount(text=page.text)
                         if count >= minprose:
                             newline += 'Readable prose count: %s bytes. {{tick}} ' % (count)
+                            if usersection in scoreboard:
+                                scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
+                            else:
+                                scoreboard[usersection] = {}
+                                for conpagetitle in contestpagetitles:
+                                    scoreboard[usersection][conpagetitle.split('/')[-1]] = 0
+                                scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
                         else:
                             newline += 'Readable prose count: %s bytes. {{cross}} ' % (count)
                         unsourced = unsourcedParagraphs(text=page.text)
@@ -179,14 +189,6 @@ def main():
                             newline += 'Unsourced paragraphs (%s), formatting errors%s. {{cross}}' % (unsourced, formaterrors and ' (%s)' % (', '.join(formaterrors)) or ' (none)')
                         else:
                             newline += 'No unsourced paragraphs, no formatting errors. {{tick}}'
-                            if count >= minprose:
-                                if usersection in scoreboard:
-                                    scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
-                                else:
-                                    scoreboard[usersection] = {}
-                                    for conpagetitle in contestpagetitles:
-                                        scoreboard[usersection][conpagetitle.split('/')[-1]] = 0
-                                    scoreboard[usersection][contestpagetitle.split('/')[-1]] += 1
                         newtext.append(newline)
                         #print(newline.encode('utf-8'))
                         continue
