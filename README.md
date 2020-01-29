@@ -1,4 +1,3 @@
-wikipedia-scripts
-=================
+# wikipedia-scripts
 
-Some scripts and bots for Wikipedia
+Some scripts and bots for Wikipedia.
